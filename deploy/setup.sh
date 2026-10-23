@@ -17,23 +17,28 @@ id underpressure >/dev/null 2>&1 || useradd --system --home /var/lib/underpressu
 install -d -o underpressure -g underpressure -m 700 /var/lib/underpressure
 
 echo "==> Konfiguration"
-if [ ! -f "$ENV" ]; then
-  SETUP_CODE=$(tr -dc 'a-z0-9' </dev/urandom | head -c 12)
+touch "$ENV"
+chown root:underpressure "$ENV"
+chmod 640 "$ENV"
+setvar() {  # Eintrag ergaenzen, falls er fehlt oder leer ist (vorhandene Werte bleiben)
+  if grep -q "^$1=." "$ENV"; then return; fi
+  sed -i "/^$1=/d" "$ENV"
+  echo "$1=$2" >> "$ENV"
+  echo "   $1 eingetragen"
+}
+setvar UP_DB /var/lib/underpressure/underpressure.db
+setvar UP_RP_ID "$DOMAIN"
+setvar UP_ORIGIN "https://$DOMAIN"
+setvar UP_SETUP_CODE "$(python3 -c 'import secrets; print(secrets.token_hex(6))')"
+setvar UP_MODEL claude-haiku-5-5
+if ! grep -q "^ANTHROPIC_API_KEY=." "$ENV"; then
   echo
-  read -r -s -p "Anthropic-API-Schluessel fuer die Display-Erkennung (Enter = ohne, Werte nur eintippen): " AKEY || true
+  read -r -s -p "Anthropic-API-Schluessel fuer die Display-Erkennung (Enter = ohne, Werte nur eintippen): " AKEY || AKEY=""
   echo
-  cat > "$ENV" <<CONF
-UP_DB=/var/lib/underpressure/underpressure.db
-UP_RP_ID=$DOMAIN
-UP_ORIGIN=https://$DOMAIN
-UP_SETUP_CODE=$SETUP_CODE
-ANTHROPIC_API_KEY=${AKEY:-}
-UP_MODEL=claude-haiku-5-5
-CONF
-  chown root:underpressure "$ENV"
-  chmod 640 "$ENV"
+  sed -i "/^ANTHROPIC_API_KEY=/d" "$ENV"
+  echo "ANTHROPIC_API_KEY=${AKEY}" >> "$ENV"
 else
-  echo "   $ENV existiert schon, bleibt unveraendert"
+  echo "   API-Schluessel vorhanden"
 fi
 
 echo "==> Port 8090 pruefen"
@@ -79,6 +84,6 @@ set -a; . "$ENV"; set +a
 echo
 echo "================ FERTIG ================"
 echo "Adresse:          https://$DOMAIN"
-echo "Einrichtungscode: $UP_SETUP_CODE"
+echo "Einrichtungscode: ${UP_SETUP_CODE:-}"
 [ -n "${ANTHROPIC_API_KEY:-}" ] && echo "Display-Erkennung: an" || echo "Display-Erkennung: aus (Schluessel spaeter in $ENV eintragen, dann: sudo systemctl restart underpressure)"
 echo "Updates:          sudo underpressure-update"
