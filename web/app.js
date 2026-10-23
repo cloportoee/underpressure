@@ -654,6 +654,16 @@ function viewHistory() {
   return html;
 }
 
+function pdfButtons(list) {
+  if (!list.length) return `<button class="primary" disabled>Als PDF sichern</button>`;
+  const p = S.pdf;
+  if (p?.error) return `<button class="primary" disabled>PDF konnte nicht erstellt werden</button>`;
+  if (!p?.file) return `<button class="primary" disabled>PDF wird vorbereitet …</button>`;
+  return `<button class="primary" data-act="print">Als PDF sichern oder senden</button>
+      <a class="secondary" style="display:block;text-align:center;text-decoration:none" href="${p.url}" target="_blank" rel="noopener" download="${p.name}">PDF öffnen</a>
+      <small>Im Teilen-Menü „In Dateien sichern“ wählen oder direkt per Mail an die Praxis schicken.</small>`;
+}
+
 function viewReport() {
   const days = S.period;
   const list = inPeriod(days);
@@ -669,8 +679,7 @@ function viewReport() {
       <div class="field"><label for="in-period">Zeitraum</label><select id="in-period">
         ${[7, 14, 30, 90].map((n) => `<option value="${n}" ${n === days ? "selected" : ""}>Letzte ${n} Tage</option>`).join("")}
       </select></div>
-      <div class="actions"><button class="primary" data-act="print" ${list.length ? "" : "disabled"}>Als PDF sichern</button>
-      <small>Danach „In Dateien sichern“ wählen oder direkt per Mail an die Praxis schicken.</small></div>
+      <div class="actions">${pdfButtons(list)}</div>
     </div>
     <div class="print-only">
       <h1>Blutdruckprotokoll${S.settings.name ? ` – ${esc(S.settings.name)}` : ""}</h1>
@@ -723,6 +732,24 @@ function render() {
     settings: viewSettings, code: viewRecoveryCode, alert: viewAlert };
   app.innerHTML = (views[S.view] || viewHome)();
   S.fresh = false;
+  if (S.view === "report") preparePDF();
+}
+
+async function preparePDF() {
+  const list = inPeriod(S.period);
+  const key = [S.period, S.settings.name, new Date().toDateString(), ...list.map((e) => [e.id, e.takenAt, e.sys, e.dia, e.pulse, (e.tags || []).join(","), e.note].join(":"))].join("|");
+  if (!list.length || (S.pdf && S.pdf.key === key)) return;
+  if (S.pdf?.url) URL.revokeObjectURL(S.pdf.url);
+  S.pdf = { key };
+  try {
+    const blob = await buildReportPDF({ list, days: S.period, name: S.settings.name, stats: stats(list), effects: tagEffects(list), fmtDate, fmtTime });
+    if (S.pdf.key !== key) return;
+    const fname = `Blutdruck_${new Date().toISOString().slice(0, 10)}.pdf`;
+    S.pdf = { key, file: new File([blob], fname, { type: "application/pdf" }), url: URL.createObjectURL(blob), name: fname };
+  } catch (e) {
+    S.pdf = { key, error: true };
+  }
+  if (S.view === "report") render();
 }
 
 /* ---------- Aktionen ---------- */
@@ -809,25 +836,16 @@ const actions = {
     });
   },
   nav: (el) => { S.view = el.dataset.view; render(); window.scrollTo(0, 0); },
-  print: async () => {
-    const list = inPeriod(S.period);
-    if (!list.length) return;
-    toast("PDF wird erstellt …");
-    try {
-      const blob = await buildReportPDF({ list, days: S.period, name: S.settings.name, stats: stats(list), effects: tagEffects(list), fmtDate, fmtTime });
-      const fname = `Blutdruck_${new Date().toISOString().slice(0, 10)}.pdf`;
-      const file = new File([blob], fname, { type: "application/pdf" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try { await navigator.share({ files: [file], title: "Blutdruckprotokoll" }); }
-        catch (e) { if (e.name !== "AbortError") throw e; }
-      } else {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob); a.download = fname;
-        document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-      }
-    } catch (e) {
-      toast("PDF konnte nicht erstellt werden.");
+  print: () => {
+    // Kein await vor navigator.share: Safari erlaubt das Teilen nur direkt nach dem Tippen.
+    const pdf = S.pdf;
+    if (!pdf || !pdf.file) return;
+    if (navigator.canShare && navigator.canShare({ files: [pdf.file] })) {
+      navigator.share({ files: [pdf.file], title: "Blutdruckprotokoll" }).catch((e) => {
+        if (e.name !== "AbortError") toast("Teilen nicht möglich. Tipp auf „PDF öffnen“.");
+      });
+    } else {
+      window.open(pdf.url, "_blank");
     }
   },
   "rm-tag": (el) => { S.settings.tags.splice(Number(el.dataset.i), 1); run(saveSettings); },
