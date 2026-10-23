@@ -454,9 +454,11 @@ async def ocr(request: Request):
             reason = json.loads(e.read()).get("error", {}).get("message", "")
         except Exception:
             pass
+        print(f"OCR-API-Fehler {e.code}: {reason}", flush=True)
         err(502, f"Display-Erkennung fehlgeschlagen ({e.code}). {reason}".strip())
-    except Exception:
-        err(502, "Display-Erkennung nicht erreichbar. Werte bitte eintippen.")
+    except Exception as e:
+        print(f"OCR-Verbindung fehlgeschlagen: {type(e).__name__}: {e}", flush=True)
+        err(502, f"Display-Erkennung nicht erreichbar ({type(e).__name__}). Werte bitte eintippen.")
     text = "".join(b.get("text", "") for b in res.get("content", []) if b.get("type") == "text")
     text = text.replace("```json", "").replace("```", "").strip()
     try:
