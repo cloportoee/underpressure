@@ -660,7 +660,7 @@ function pdfButtons(list) {
   if (p?.error) return `<button class="primary" disabled>PDF konnte nicht erstellt werden</button>`;
   if (!p?.file) return `<button class="primary" disabled>PDF wird vorbereitet …</button>`;
   return `<button class="primary" data-act="print">Als PDF sichern oder senden</button>
-      <a class="secondary" style="display:block;text-align:center;text-decoration:none" href="${p.url}" target="_blank" rel="noopener" download="${p.name}">PDF öffnen</a>
+      <a class="button secondary" style="text-align:center;text-decoration:none;box-sizing:border-box" href="${p.url}" target="_blank" rel="noopener" download="${p.name}">PDF öffnen</a>
       <small>Im Teilen-Menü „In Dateien sichern“ wählen oder direkt per Mail an die Praxis schicken.</small>`;
 }
 
