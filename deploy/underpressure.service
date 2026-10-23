@@ -1,0 +1,19 @@
+[Unit]
+Description=underpressure – private Blutdruck-App (intern auf Port 8090, oeffentlich ueber Caddy)
+After=network.target
+
+[Service]
+User=underpressure
+Group=underpressure
+EnvironmentFile=/etc/underpressure.env
+WorkingDirectory=/opt/underpressure/app
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 127.0.0.1 --port 8090 --no-server-header --no-access-log
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/underpressure
+
+[Install]
+WantedBy=multi-user.target

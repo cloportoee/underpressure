@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#E9ECE6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101411" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="underpressure">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/style.css?v=1">
+<title>underpressure</title>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+
+<nav id="nav" hidden>
+  <button data-view="home" aria-current="page">Heute</button>
+  <button data-view="history">Verlauf</button>
+  <button data-view="report">Bericht</button>
+  <button data-view="settings">Einstellungen</button>
+</nav>
+
+<input id="camera" type="file" accept="image/*" capture="environment" hidden>
+<input id="library" type="file" accept="image/*" hidden>
+
+<div id="toast" role="status" hidden></div>
+<script src="/app.js?v=1"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Neue Version aus GitHub holen und neu starten:  sudo underpressure-update
+set -euo pipefail
+[ "$(id -u)" = 0 ] || { echo "Bitte mit sudo ausfuehren."; exit 1; }
+git -C /opt/underpressure fetch -q origin
+git -C /opt/underpressure reset -q --hard origin/main
+install -m 644 /opt/underpressure/deploy/underpressure.service /etc/systemd/system/underpressure.service
+systemctl daemon-reload
+systemctl restart underpressure
+sleep 1
+systemctl is-active --quiet underpressure && echo "underpressure laeuft: $(git -C /opt/underpressure log -1 --format='%h %s')" \
+  || { echo "Dienst startet nicht:"; journalctl -u underpressure -n 30 --no-pager; exit 1; }
