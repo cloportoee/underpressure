@@ -670,7 +670,7 @@ function viewReport() {
         ${[7, 14, 30, 90].map((n) => `<option value="${n}" ${n === days ? "selected" : ""}>Letzte ${n} Tage</option>`).join("")}
       </select></div>
       <div class="actions"><button class="primary" data-act="print" ${list.length ? "" : "disabled"}>Als PDF sichern</button>
-      <small>Im Druckdialog auf Teilen tippen und „In Dateien sichern“ wählen.</small></div>
+      <small>Danach „In Dateien sichern“ wählen oder direkt per Mail an die Praxis schicken.</small></div>
     </div>
     <div class="print-only">
       <h1>Blutdruckprotokoll${S.settings.name ? ` – ${esc(S.settings.name)}` : ""}</h1>
@@ -809,7 +809,27 @@ const actions = {
     });
   },
   nav: (el) => { S.view = el.dataset.view; render(); window.scrollTo(0, 0); },
-  print: () => window.print(),
+  print: async () => {
+    const list = inPeriod(S.period);
+    if (!list.length) return;
+    toast("PDF wird erstellt …");
+    try {
+      const blob = await buildReportPDF({ list, days: S.period, name: S.settings.name, stats: stats(list), effects: tagEffects(list), fmtDate, fmtTime });
+      const fname = `Blutdruck_${new Date().toISOString().slice(0, 10)}.pdf`;
+      const file = new File([blob], fname, { type: "application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: "Blutdruckprotokoll" }); }
+        catch (e) { if (e.name !== "AbortError") throw e; }
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob); a.download = fname;
+        document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      }
+    } catch (e) {
+      toast("PDF konnte nicht erstellt werden.");
+    }
+  },
   "rm-tag": (el) => { S.settings.tags.splice(Number(el.dataset.i), 1); run(saveSettings); },
   "add-tag": () => {
     const v = $("#in-newtag").value.trim();
